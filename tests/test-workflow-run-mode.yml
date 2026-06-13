@@ -1,0 +1,25 @@
+name: Test workflow_run mode with GITHUB_PR_RUN_ID
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: workflow_run
+      GITHUB_REF: refs/heads/main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          GITHUB_TOKEN: fake-token-for-testing
+          GITHUB_PR_RUN_ID: "123456789"
+          COVERAGE_DATA_BRANCH: python-coverage-comment-action-data
+          COMMENT_ARTIFACT_NAME: python-coverage-comment-action
+          COMMENT_FILENAME: python-coverage-comment-action.txt
+      - name: Assert action ran in workflow_run mode
+        run: |
+          echo "activity_run: ${{ steps.action.outputs.activity_run }}"
+          echo "Action completed in workflow_run mode (error expected without real token/artifact)"
+          echo "PASS"

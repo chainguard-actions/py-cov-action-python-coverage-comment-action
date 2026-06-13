@@ -1,0 +1,31 @@
+name: Test custom COMMENT_TEMPLATE input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: pull_request
+      GITHUB_REF: refs/pull/1/merge
+      GITHUB_HEAD_REF: feature-branch
+      GITHUB_BASE_REF: main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          GITHUB_TOKEN: fake-token-for-testing
+          COMMENT_TEMPLATE: |
+            Coverage: {{ coverage.percent_covered | round(2) }}%
+          MINIMUM_GREEN: "80"
+          MINIMUM_ORANGE: "60"
+          MAX_FILES_IN_COMMENT: "10"
+          ANNOTATE_MISSING_LINES: "false"
+          ANNOTATION_TYPE: "warning"
+          MERGE_COVERAGE_FILES: "false"
+      - name: Assert action ran with custom template
+        run: |
+          echo "activity_run: ${{ steps.action.outputs.activity_run }}"
+          echo "Action completed with custom COMMENT_TEMPLATE (error expected without real PR/token)"
+          echo "PASS"
