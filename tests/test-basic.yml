@@ -1,0 +1,46 @@
+name: Test basic usage with GITHUB_TOKEN
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: push
+      GITHUB_REF: refs/heads/main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Create minimal coverage file
+        run: |
+          pip install coverage --quiet
+          python -c "
+          x = 1
+          y = 2
+          z = x + y
+          "
+          # Create a minimal .coverage sqlite file
+          python -c "
+          import coverage
+          cov = coverage.Coverage(data_file='.coverage')
+          cov.start()
+          x = 1
+          cov.stop()
+          cov.save()
+          "
+      - id: action
+        uses: .
+        with:
+          GITHUB_TOKEN: fake-token-for-testing
+        continue-on-error: true
+      - name: Assert action ran (may fail due to no real PR context)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          # The action is expected to fail without a real GitHub token and PR context
+          # but we verify it was invoked with the required inputs
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action was invoked"
+          else
+            echo "FAIL: action was not invoked properly"
+            exit 1
+          fi

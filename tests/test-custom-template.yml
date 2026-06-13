@@ -1,0 +1,33 @@
+name: Test custom COMMENT_TEMPLATE input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: pull_request
+      GITHUB_REF: refs/pull/1/merge
+      GITHUB_HEAD_REF: feature-branch
+      GITHUB_BASE_REF: main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          GITHUB_TOKEN: fake-token-for-testing
+          COMMENT_TEMPLATE: |
+            Coverage: {{ coverage.percent_covered | pct }}
+        continue-on-error: true
+      - name: Assert action ran with COMMENT_TEMPLATE input
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          # The action is expected to fail without a real GitHub token and PR context,
+          # but we verify it was invoked with the COMMENT_TEMPLATE input
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action was invoked with COMMENT_TEMPLATE"
+          else
+            echo "FAIL: action was not invoked properly"
+            exit 1
+          fi

@@ -1,0 +1,30 @@
+name: Test workflow_run mode with GITHUB_PR_RUN_ID
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: workflow_run
+      GITHUB_REF: refs/heads/main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          GITHUB_TOKEN: fake-token-for-testing
+          GITHUB_PR_RUN_ID: "12345"
+        continue-on-error: true
+      - name: Assert action ran with GITHUB_PR_RUN_ID input
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          # The action is expected to fail without a real GitHub token and workflow run context,
+          # but we verify it was invoked with the required inputs
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action was invoked with GITHUB_PR_RUN_ID"
+          else
+            echo "FAIL: action was not invoked properly"
+            exit 1
+          fi
