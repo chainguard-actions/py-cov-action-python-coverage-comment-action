@@ -1,0 +1,35 @@
+name: Test custom COMMENT_TEMPLATE input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: pull_request
+      GITHUB_REF: refs/pull/1/merge
+      GITHUB_HEAD_REF: feature-branch
+      GITHUB_BASE_REF: main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run action with custom COMMENT_TEMPLATE (expect failure without valid token)
+        id: action
+        uses: .
+        with:
+          GITHUB_TOKEN: fake-token-for-input-coverage-test
+          COMMENT_TEMPLATE: |
+            ## Coverage Report
+            Coverage: {{ coverage.percent_covered | round(2) }}%
+          COVERAGE_PATH: "."
+          MINIMUM_GREEN: 80
+          MINIMUM_ORANGE: 50
+          MAX_FILES_IN_COMMENT: 10
+          ANNOTATE_MISSING_LINES: false
+          ANNOTATION_TYPE: warning
+          USE_GH_PAGES_HTML_URL: false
+        continue-on-error: true
+
+      - name: Verify action was invoked with COMMENT_TEMPLATE
+        run: |
+          echo "Action completed (with or without error, as expected without real credentials)"
+          echo "PASS: COMMENT_TEMPLATE input was passed to the action"

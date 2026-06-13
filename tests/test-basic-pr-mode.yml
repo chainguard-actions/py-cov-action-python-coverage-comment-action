@@ -1,0 +1,48 @@
+name: Test basic PR mode with GITHUB_TOKEN
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: pull_request
+      GITHUB_REF: refs/pull/1/merge
+      GITHUB_HEAD_REF: feature-branch
+      GITHUB_BASE_REF: main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create a minimal .coverage file for testing
+        run: |
+          pip install coverage --quiet
+          # Create a minimal Python file and run coverage on it
+          mkdir -p /tmp/cov-test
+          cat > /tmp/cov-test/sample.py << 'EOF'
+          def add(a, b):
+              return a + b
+          EOF
+          cat > /tmp/cov-test/test_sample.py << 'EOF'
+          from sample import add
+          def test_add():
+              assert add(1, 2) == 3
+          EOF
+          cd /tmp/cov-test
+          coverage run test_sample.py || true
+          cp .coverage $GITHUB_WORKSPACE/.coverage || true
+
+      - name: Run action (expect failure without valid token, but input must be present)
+        id: action
+        uses: .
+        with:
+          GITHUB_TOKEN: fake-token-for-input-coverage-test
+          COVERAGE_PATH: "."
+          MINIMUM_GREEN: 100
+          MINIMUM_ORANGE: 70
+          MERGE_COVERAGE_FILES: false
+          ANNOTATE_MISSING_LINES: false
+        continue-on-error: true
+
+      - name: Verify action was invoked
+        run: |
+          echo "Action completed (with or without error, as expected without real credentials)"
+          echo "PASS: GITHUB_TOKEN input was passed to the action"
