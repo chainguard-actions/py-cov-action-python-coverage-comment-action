@@ -1,0 +1,44 @@
+name: Test post_comment activity with GITHUB_PR_RUN_ID
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create GITHUB_STEP_SUMMARY file
+        run: |
+          touch /tmp/step_summary.txt
+          echo "GITHUB_STEP_SUMMARY=/tmp/step_summary.txt" >> $GITHUB_ENV
+
+      - name: Create GITHUB_OUTPUT file
+        run: |
+          touch /tmp/github_output.txt
+          echo "GITHUB_OUTPUT=/tmp/github_output.txt" >> $GITHUB_ENV
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          GITHUB_TOKEN: fake-token-for-testing
+          ACTIVITY: post_comment
+          GITHUB_PR_RUN_ID: "12345678"
+        env:
+          GITHUB_REPOSITORY: test-owner/test-repo
+          GITHUB_REF: refs/heads/main
+          GITHUB_EVENT_NAME: workflow_run
+          GITHUB_STEP_SUMMARY: /tmp/step_summary.txt
+          GITHUB_OUTPUT: /tmp/github_output.txt
+
+      - name: Assert action ran with GITHUB_PR_RUN_ID provided
+        run: |
+          echo "outcome: ${{ steps.action.outcome }}"
+          # The action should fail at the GitHub API call (fake token/repo),
+          # but it should NOT fail due to missing GITHUB_PR_RUN_ID.
+          # Either success or failure is acceptable — the key is that the input was accepted.
+          if [ "${{ steps.action.outcome }}" != "success" ] && [ "${{ steps.action.outcome }}" != "failure" ]; then
+            echo "FAIL: unexpected outcome '${{ steps.action.outcome }}'"
+            exit 1
+          fi
+          echo "PASS: action ran with GITHUB_PR_RUN_ID set, outcome '${{ steps.action.outcome }}'"

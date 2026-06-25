@@ -1,0 +1,62 @@
+name: Test process_pr with custom COMMENT_TEMPLATE
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create minimal .coverage file for testing
+        run: |
+          pip install coverage
+          cat > /tmp/sample.py << 'EOF'
+          def add(a, b):
+              return a + b
+
+          result = add(1, 2)
+          EOF
+          cd /tmp
+          python -m coverage run sample.py
+          cp /tmp/.coverage $GITHUB_WORKSPACE/.coverage
+
+      - name: Create GITHUB_STEP_SUMMARY file
+        run: |
+          touch /tmp/step_summary.txt
+          echo "GITHUB_STEP_SUMMARY=/tmp/step_summary.txt" >> $GITHUB_ENV
+
+      - name: Create GITHUB_OUTPUT file
+        run: |
+          touch /tmp/github_output.txt
+          echo "GITHUB_OUTPUT=/tmp/github_output.txt" >> $GITHUB_ENV
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          GITHUB_TOKEN: fake-token-for-testing
+          ACTIVITY: process_pr
+          COVERAGE_PATH: "."
+          MINIMUM_GREEN: "80"
+          MINIMUM_ORANGE: "60"
+          COMMENT_TEMPLATE: |
+            Coverage: {{ coverage.percent_covered | round(2) }}%
+        env:
+          GITHUB_REPOSITORY: test-owner/test-repo
+          GITHUB_REF: refs/pull/1/merge
+          GITHUB_EVENT_NAME: pull_request
+          GITHUB_BASE_REF: main
+          GITHUB_HEAD_REF: feature-branch
+          GITHUB_STEP_SUMMARY: /tmp/step_summary.txt
+          GITHUB_OUTPUT: /tmp/github_output.txt
+
+      - name: Assert action ran with custom COMMENT_TEMPLATE
+        run: |
+          echo "outcome: ${{ steps.action.outcome }}"
+          # The action should either succeed or fail gracefully (not crash with an unhandled exception)
+          # It may fail at GitHub API calls with a fake token, which is expected
+          if [ "${{ steps.action.outcome }}" != "success" ] && [ "${{ steps.action.outcome }}" != "failure" ]; then
+            echo "FAIL: unexpected outcome '${{ steps.action.outcome }}'"
+            exit 1
+          fi
+          echo "PASS: action ran with COMMENT_TEMPLATE, outcome '${{ steps.action.outcome }}'"

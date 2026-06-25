@@ -1,0 +1,38 @@
+repos:
+  - repo: builtin
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+
+  - repo: local
+    hooks:
+      - id: ruff format
+        name: ruff format
+        entry: uv run ruff format --force-exclude
+        types: [python]
+        language: system
+
+      - id: ruff check
+        name: ruff check
+        entry: uv run ruff check --fix --force-exclude
+        types: [python]
+        language: system
+
+      - id: basedpyright
+        name: basedpyright
+        entry: uv run basedpyright
+        language: system
+        require_serial: true
+        types_or: [python, pyi]
+
+      - id: zizmor
+        name: zizmor
+        entry: uv run zizmor --fix=all
+        types: [yaml]
+        files: (\.github/(workflows/.*|dependabot.ya?ml))|(action\.ya?ml)$
+        language: system
+        require_serial: true
+        args:
+          - "--no-progress" # https://github.com/zizmorcore/zizmor/issues/582
