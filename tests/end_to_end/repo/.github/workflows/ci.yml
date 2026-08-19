@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "main"
+
+concurrency:
+  group: CI
+
+jobs:
+  test:
+    name: Run tests & display/prepare coverage
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - run: pip install -e .
+        working-directory: __ACTION_COVERAGE_PATH__
+
+      - run: pytest
+        working-directory: __ACTION_COVERAGE_PATH__
+
+      - name: Coverage comment
+        id: coverage_comment
+        uses: py-cov-action/python-coverage-comment-action@__ACTION_REF__
+        with:
+          GITHUB_TOKEN: ${{ github.token }}
+          ANNOTATE_MISSING_LINES: true
+          ANNOTATION_TYPE: notice
+          COVERAGE_PATH: __ACTION_COVERAGE_PATH__
+          SUBPROJECT_ID: __ACTION_SUBPROJECT_ID__
+
+      - name: Store Pull Request comment to be posted
+        uses: actions/upload-artifact@v6
+        if: steps.coverage_comment.outputs.COMMENT_FILE_WRITTEN == 'true'
+        with:
+          name: python-coverage-comment-action
+          path: python-coverage-comment-action*.txt

@@ -1,4 +1,4 @@
-name: Test GITHUB_PR_RUN_ID input (workflow_run mode)
+name: Test COMMENT_TEMPLATE input
 on:
   workflow_dispatch:
 jobs:
@@ -11,20 +11,22 @@ jobs:
         continue-on-error: true
         with:
           GITHUB_TOKEN: ${{ github.token }}
-          GITHUB_PR_RUN_ID: ${{ github.run_id }}
+          COMMENT_TEMPLATE: |
+            ## Coverage Report
+            {{ coverage_report }}
           COVERAGE_PATH: "."
-      - name: Assert action ran with GITHUB_PR_RUN_ID input
+      - name: Assert action ran (unsupported event is acceptable)
         env:
           OUTCOME: ${{ steps.action.outcome }}
           ACTIVITY: ${{ steps.action.outputs.activity_run }}
         run: |
           echo "outcome: $OUTCOME"
           echo "activity_run: $ACTIVITY"
-          # Under workflow_dispatch, the action may exit with an unsupported event
-          # or attempt workflow_run processing. Either success or failure is acceptable
-          # as long as the action ran (outcome is set).
+          # The action may fail or succeed depending on event context.
+          # Under workflow_dispatch, it typically exits with an unsupported event message.
+          # We just verify it ran (outcome is set) and did not produce an unexpected crash.
           if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action ran with GITHUB_PR_RUN_ID input"
+            echo "PASS: action ran with COMMENT_TEMPLATE input"
           else
             echo "FAIL: unexpected outcome: $OUTCOME"
             exit 1

@@ -1,0 +1,127 @@
+name: Run end-to-end tests on external PR approval
+
+on:
+  workflow_run:
+    workflows: ["Trigger end-to-end tests on external PR approval"]
+    types:
+      - completed
+
+concurrency:
+  group: ${{ github.event_name }}-${{ github.ref }}
+
+jobs:
+  e2e:
+    name: End-to-end tests
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    permissions:
+      actions: read
+      pull-requests: write
+      contents: write
+      checks: write
+    steps:
+      - name: Extract PR number from artifact
+        id: extract_pr_number
+        run: |
+          pr_number=$(
+            gh api \
+            --method GET \
+            "/repos/py-cov-action/python-coverage-comment-action/actions/runs/${RUN_ID}/artifacts" \
+            -F name="pr_number" \
+            --jq '[.artifacts[]] | last | .archive_download_url' \
+            | xargs gh api \
+            | funzip
+          )
+          safe=$(printf '%s' "$pr_number" | tr -d '\n\r')
+          echo "PR_NUMBER=$safe" >> "${GITHUB_OUTPUT}"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+
+      - name: Extract the approved commit
+        id: extract_commit
+        run: |
+          COMMIT_ID=$(gh pr --repo py-cov-action/python-coverage-comment-action view "${PR_NUMBER}" --json reviews --jq '[.reviews[] | select(.state == "APPROVED" and .authorAssociation == "MEMBER" and (.body | contains("/e2e")) ) | .commit.oid] | last')
+          if [ -z "${COMMIT_ID}" ]; then
+          echo "No approved commit found"
+            exit 1
+          fi
+          echo "COMMIT_ID=${COMMIT_ID}" > "${GITHUB_OUTPUT}"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.extract_pr_number.outputs.PR_NUMBER }}
+
+      - name: Extract the current job id
+        id: extract_job_id
+        run: >
+          gh api
+          "repos/py-cov-action/python-coverage-comment-action/actions/runs/${RUN_ID}/attempts/${RUN_ATTEMPT}/jobs"
+          --jq '
+          .jobs[]
+          | select(.runner_name=="'"${RUNNER_NAME}"'")
+          | "JOB_ID=" + (.id | tostring)'
+          > "${GITHUB_OUTPUT}"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          RUNNER_NAME: ${{ runner.name }}
+
+      - name: Create PR check
+        id: create_check
+        run: >
+          gh api
+          "repos/py-cov-action/python-coverage-comment-action/check-runs"
+          -X POST
+          -F name="End-to-end tests (external PR)"
+          -F head_sha="${HEAD_SHA}"
+          -F status="in_progress"
+          -F started_at="$(date -u +%FT%TZ)"
+          -F details_url="$(gh api "/repos/py-cov-action/python-coverage-comment-action/actions/jobs/${JOB_ID}" --jq '.html_url')"
+          --jq '"CHECK_RUN_ID=" + (.id | tostring)' > "${GITHUB_OUTPUT}"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ steps.extract_commit.outputs.COMMIT_ID }}
+          JOB_ID: ${{ steps.extract_job_id.outputs.JOB_ID }}
+
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          # Important: use the commit that was reviewed. GitHub is making sure
+          # that this is race-condition-proof
+          ref: ${{ steps.extract_commit.outputs.COMMIT_ID }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+
+      - name: Poetry caches
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            ~/.cache/
+          key: ${{ hashFiles('uv.lock') }}
+
+      - name: Install deps
+        run: uv sync --all-groups
+
+      - name: Run end-to-end tests
+        run: uv run pytest tests/end_to_end
+        env:
+          PY_COLORS: 1
+          COVERAGE_COMMENT_E2E_GITHUB_TOKEN_USER_1: ${{ secrets.COVERAGE_COMMENT_E2E_GITHUB_TOKEN_USER_1 }}
+          COVERAGE_COMMENT_E2E_GITHUB_TOKEN_USER_2: ${{ secrets.COVERAGE_COMMENT_E2E_GITHUB_TOKEN_USER_2 }}
+          COVERAGE_COMMENT_E2E_ACTION_REF: ${{ steps.extract_commit.outputs.COMMIT_ID }}
+          COVERAGE_COMMENT_E2E_REPO_SUFFIX: ${{ steps.extract_pr_number.outputs.PR_NUMBER }}
+
+      - name: Report results to Check
+        if: always() && steps.create_check.outputs.CHECK_RUN_ID
+        run: >
+          gh api
+          "repos/py-cov-action/python-coverage-comment-action/check-runs/${CHECK_RUN_ID}"
+          -X PATCH
+          -F "conclusion=${JOB_STATUS}"
+          -F status=completed
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          CHECK_RUN_ID: ${{ steps.create_check.outputs.CHECK_RUN_ID }}
+          JOB_STATUS: ${{ job.status }}
