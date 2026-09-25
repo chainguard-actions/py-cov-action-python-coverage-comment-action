@@ -1,6 +1,11 @@
 {
   "owner": "py-cov-action",
   "repo": "python-coverage-comment-action",
-  "version": "",
-  "url": "https://github.com/py-cov-action/python-coverage-comment-action"
+  "version": "v4.5",
+  "commit_sha": "e5fb2218463c3377f3504b0c5b5646ed53da7a2f",
+  "url": "https://github.com/py-cov-action/python-coverage-comment-action",
+  "policy_sha": "d636be7e43ef829af6e853da6b3c7566db9f72fe",
+  "test_policy_sha": "843adf9e4b8f85d0c08b27b9d0b09dd094b54702",
+  "test_agent_version": "2",
+  "harden_agent_version": "2"
 }
