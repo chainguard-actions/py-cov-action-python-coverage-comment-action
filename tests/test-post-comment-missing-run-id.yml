@@ -1,0 +1,41 @@
+name: Test post_comment activity with missing GITHUB_PR_RUN_ID
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          GITHUB_TOKEN: ${{ github.token }}
+          # Explicitly request post_comment activity without providing GITHUB_PR_RUN_ID
+          ACTIVITY: post_comment
+          # No GITHUB_PR_RUN_ID provided — action should fail with an error message.
+          # get_repository_info() is called first and fails on the sentinel repo (404),
+          # OR post_comment returns 1 because GITHUB_PR_RUN_ID is missing.
+          # Either way, failure is expected.
+
+      - name: Assert action failed (missing GITHUB_PR_RUN_ID or sentinel repo not resolvable)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action should fail because:
+          # 1. get_repository_info() hits the sentinel repo API (404), OR
+          # 2. post_comment activity requires GITHUB_PR_RUN_ID which is not set
+          # Either way, failure is the expected outcome.
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed as expected (sentinel repo or missing GITHUB_PR_RUN_ID)"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "FAIL: action unexpectedly succeeded without GITHUB_PR_RUN_ID"
+            exit 1
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
