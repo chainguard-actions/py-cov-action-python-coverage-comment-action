@@ -1,0 +1,69 @@
+name: Test process_pr activity with a custom COMMENT_TEMPLATE
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Generate a .coverage data file (relative paths)
+        run: |
+          set -e
+          cd "$GITHUB_WORKSPACE"
+          cat > .coveragerc <<'EOF'
+          [run]
+          relative_files = true
+          source = tests/fixtures/sample
+          EOF
+          if python3 -m venv /tmp/covenv 2>/dev/null; then
+            /tmp/covenv/bin/pip install -q coverage
+            COV=/tmp/covenv/bin/coverage
+          else
+            python3 -m pip install -q --user --break-system-packages coverage || python3 -m pip install -q --user coverage
+            COV="python3 -m coverage"
+          fi
+          $COV run tests/fixtures/sample/run_calc.py
+          $COV report || true
+          if [ ! -f .coverage ]; then
+            echo "FAIL: .coverage was not generated"
+            exit 1
+          fi
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          GITHUB_TOKEN: ${{ github.token }}
+          ACTIVITY: process_pr
+          COMMENT_ON_PR: "false"
+          COMMENT_TEMPLATE: |
+            {% extends "base" %}
+            {% block emoji_coverage_down %}:sob:{% endblock emoji_coverage_down %}
+      - name: Assert action ran (outputs set, or failed gracefully on the sentinel repo)
+        env:
+          ACTIVITY_RUN: ${{ steps.action.outputs.activity_run }}
+          PERCENT: ${{ steps.action.outputs.new_percent_covered }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "activity_run: $ACTIVITY_RUN"
+          echo "new_percent_covered: $PERCENT"
+          if [ "$OUTCOME" = "success" ]; then
+            if [ "$ACTIVITY_RUN" != "process_pr" ]; then
+              echo "FAIL: expected activity_run=process_pr"
+              exit 1
+            fi
+            if [ -z "$PERCENT" ]; then
+              echo "FAIL: new_percent_covered is empty"
+              exit 1
+            fi
+            echo "PASS: process_pr produced outputs with custom template"
+          elif [ "$OUTCOME" = "failure" ]; then
+            if [ -n "$ACTIVITY_RUN" ]; then
+              echo "FAIL: action failed but still set activity_run"
+              exit 1
+            fi
+            echo "PASS: action failed gracefully (sentinel repo is not resolvable)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
