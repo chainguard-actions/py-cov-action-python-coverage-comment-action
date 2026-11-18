@@ -19,6 +19,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 | v4.4 | [`v4.4`](https://github.com/chainguard-actions/py-cov-action-python-coverage-comment-action/tree/v4.4) | [`54b4ecb`](https://github.com/py-cov-action/python-coverage-comment-action/commit/54b4ecbc0fcf4c22e54be4dd59d4c08db9953ce9) | [`HARDENING.md`](https://github.com/chainguard-actions/py-cov-action-python-coverage-comment-action/blob/v4.4/HARDENING.md) |
 | v4.5 | [`v4.5`](https://github.com/chainguard-actions/py-cov-action-python-coverage-comment-action/tree/v4.5) | [`e5fb221`](https://github.com/py-cov-action/python-coverage-comment-action/commit/e5fb2218463c3377f3504b0c5b5646ed53da7a2f) | [`HARDENING.md`](https://github.com/chainguard-actions/py-cov-action-python-coverage-comment-action/blob/v4.5/HARDENING.md) |
 | v4.6 | [`v4.6`](https://github.com/chainguard-actions/py-cov-action-python-coverage-comment-action/tree/v4.6) | [`07249dd`](https://github.com/py-cov-action/python-coverage-comment-action/commit/07249dd712cd2464873eb8a59a24f97fd281e76f) | [`HARDENING.md`](https://github.com/chainguard-actions/py-cov-action-python-coverage-comment-action/blob/v4.6/HARDENING.md) |
+| v4.7 | [`v4.7`](https://github.com/chainguard-actions/py-cov-action-python-coverage-comment-action/tree/v4.7) | [`281cb0d`](https://github.com/py-cov-action/python-coverage-comment-action/commit/281cb0dcb5b15d4773037d51873558fddc5a7df8) | [`HARDENING.md`](https://github.com/chainguard-actions/py-cov-action-python-coverage-comment-action/blob/v4.7/HARDENING.md) |
 
 ## Privacy
 
